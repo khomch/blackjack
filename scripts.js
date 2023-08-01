@@ -232,8 +232,8 @@ const showDealerCards = () => {
 
 const handleHitClick = (e) => {
   e.preventDefault();
-  giveCard(firstPlayerCardsDiv, dealer, firstPlayerCardsCounterDiv);
   giveCard(secondPlayerCardsDiv, user, secondPlayerCardsCounterDiv);
+  setTimeout(() => giveCard(firstPlayerCardsDiv, dealer, firstPlayerCardsCounterDiv), 500);
   setTimeout(() => handleWin(e, user, dealer), 1000);
 }
 
@@ -266,8 +266,8 @@ const handlePlayAgainButtonClick = (e) => {
   secondPlayerCardsDiv.childNodes.forEach(node => {
     node.replaceWith('');
   })
-  giveCard(firstPlayerCardsDiv, dealer, firstPlayerCardsCounterDiv);
   giveCard(secondPlayerCardsDiv, user, secondPlayerCardsCounterDiv);
+  giveCard(firstPlayerCardsDiv, dealer, firstPlayerCardsCounterDiv);
   modalText.classList.remove('dealer_wins', 'user_wins', 'no-one_wins');
   closeModal(modal);
 }
