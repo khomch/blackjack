@@ -1,17 +1,22 @@
 const TOTAL_NUM_OF_CARDS = 52;
 
+// select elements
 const firstPlayerCardsDiv = document.querySelector(".first-player_cards");
 const firstPlayerCardsCounterDiv = document.querySelector(".first-player_counter");
 const secondPlayerCardsDiv = document.querySelector(".second-player_cards");
 const secondPlayerCardsCounterDiv = document.querySelector(".second-player_counter");
 const hitButton = document.getElementById("hit");
 const standButton = document.getElementById("stand");
+const playAgainModalButton = document.getElementById("play-again-modal");
 const playAgainButton = document.getElementById("play-again");
 const modal = document.getElementById("modal");
 const modalText = document.getElementById("modal__text");
 const totalScore = document.getElementById("total_score");
-const cardsBeenUsed = {};
-const score = { dealer: 0, user: 0 };
+
+const state = {
+  cardsBeenUsed : {},
+  score: { dealer: 0, user: 0 },
+}
 
 class Player {
   constructor(name) {
@@ -102,15 +107,15 @@ const getRandomCard = () => {
 const generateCard = () => {
   let randomCard = getRandomCard();
   let card = {};
-  if (cardsBeenUsed[randomCard]) {
-    while (cardsBeenUsed[randomCard]) {
+  if (state.cardsBeenUsed[randomCard]) {
+    while (state.cardsBeenUsed[randomCard]) {
       randomCard = getRandomCard();
-      if (Object.keys(cardsBeenUsed).length === TOTAL_NUM_OF_CARDS) {
+      if (Object.keys(state.cardsBeenUsed).length === TOTAL_NUM_OF_CARDS) {
         return { suit: '', value: 'No more cards'};
       }
     }
   }
-  cardsBeenUsed[randomCard] = true;
+  state.cardsBeenUsed[randomCard] = true;
   if (randomCard <= 13) {
     card = {
       suit: 'clubs',
@@ -165,18 +170,31 @@ const giveCard = (target, player, counterDiv) => {
   updateCounter(counterDiv, player);
 }
 
+const handleAIMove = (firstPlayerCardsDiv, user, firstPlayerCardsCounterDiv) => {
+  const possibility = Math.ceil(Math.random() * 100);
+  if (user.counter.count < 12) {
+    giveCard(firstPlayerCardsDiv, dealer, firstPlayerCardsCounterDiv);
+  } else if (user.counter.count > 12 && user.counter.count < 18) {
+    (possibility < 30) && giveCard(firstPlayerCardsDiv, dealer, firstPlayerCardsCounterDiv);
+  } else {
+    (possibility < 10) && giveCard(firstPlayerCardsDiv, dealer, firstPlayerCardsCounterDiv);
+  }
+}
+
 const checkIfWinnerFound = (e, firstPlayer, secondPlayer) => {
-  if (firstPlayer.getCount() < 21 && secondPlayer.getCount() < 21 && e.target.id !== 'stand') return null;
-  if (firstPlayer.getCount() > 21 && secondPlayer.getCount() <= 21) return secondPlayer.getName();
-  if (firstPlayer.getCount() <= 21 && secondPlayer.getCount() > 21) return firstPlayer.getName();
-  if (firstPlayer.getCount() === 21 && secondPlayer.getCount() === 21) return 'even';
-  if (firstPlayer.getCount() === 21) return firstPlayer.getName();
-  if (secondPlayer.getCount() === 21) return secondPlayer.getName();
+  const firstPlayerCount = firstPlayer.getCount();
+  const secondPlayerCount = secondPlayer.getCount();
+  if (firstPlayerCount < 21 && secondPlayerCount < 21 && e.target.id !== 'stand') return null;
+  if (firstPlayerCount > 21 && secondPlayerCount <= 21) return secondPlayer.getName();
+  if (firstPlayerCount <= 21 && secondPlayerCount > 21) return firstPlayer.getName();
+  if (firstPlayerCount === 21 && secondPlayerCount === 21) return 'even';
+  if (firstPlayerCount === 21) return firstPlayer.getName();
+  if (secondPlayerCount === 21) return secondPlayer.getName();
   if (e.target.id === 'stand') {
-    if (firstPlayer.getCount() <= 21 && secondPlayer.getCount() <= 21) {
-      if (firstPlayer.getCount() > secondPlayer.getCount()) {
+    if (firstPlayerCount <= 21 && secondPlayerCount <= 21) {
+      if (firstPlayerCount > secondPlayerCount) {
         return firstPlayer.getName();
-      } else if (firstPlayer.getCount() < secondPlayer.getCount()) {
+      } else if (firstPlayerCount < secondPlayerCount) {
         return secondPlayer.getName();
       } else {
         return 'even';
@@ -187,33 +205,54 @@ const checkIfWinnerFound = (e, firstPlayer, secondPlayer) => {
 }
 
 const updateTotalScore = () => {
-  totalScore.textContent = `DEALER: ${score.dealer}, USER: ${score.user}`;
+  totalScore.textContent = `DEALER: ${state.score.dealer}, USER: ${state.score.user}`;
+}
+
+const showPlayAgain = () => {
+  hitButton.classList.add('button_hidden');
+  standButton.classList.add('button_hidden');
+  playAgainButton.classList.remove('button_hidden');
+}
+
+const showControls = () => {
+  hitButton.classList.remove('button_hidden');
+  standButton.classList.remove('button_hidden');
+  playAgainButton.classList.add('button_hidden');
+}
+
+const isDeckLengthExceeded = () => {
+  let text;
+  if (Object.keys(state.cardsBeenUsed).length === TOTAL_NUM_OF_CARDS) {
+    modalText.classList.add('no-one_wins');
+    text = 'No more cards left in the deck. Please reload the page.';
+    modalText.textContent = text;
+    openModal(modal);
+    return true;
+  }
+  return false;
 }
 
 const handleWin = (e, user, dealer) => {
   let winner = checkIfWinnerFound(e, user, dealer);
   let text;
-  if (Object.keys(cardsBeenUsed).length === TOTAL_NUM_OF_CARDS) {
-    modalText.classList.add('no-one_wins');
-    text = 'No more cards left. Please reload the page.';
-    modalText.textContent = text;
-    openModal(modal);
-  } else if(winner){
+  if(!isDeckLengthExceeded() && winner){
     showDealerCards();
     if (winner === 'dealer') {
       text = 'Dealer wins!';
       modalText.classList.add('dealer_wins');
-      score.dealer++;
+      state.score.dealer++;
     } else if (winner === 'user') {
       text = 'You win!'
       modalText.classList.add('user_wins');
-      score.user++;
+      state.score.user++;
     } else {
       text = 'No winner! Go again!'
       modalText.classList.add('no-one_wins');
     }
     updateTotalScore();
     modalText.textContent = text;
+    showPlayAgain();
+    firstPlayerCardsCounterDiv.classList.remove('counter_hidden');
     openModal(modal)
   }
 }
@@ -232,9 +271,12 @@ const showDealerCards = () => {
 
 const handleHitClick = (e) => {
   e.preventDefault();
-  giveCard(secondPlayerCardsDiv, user, secondPlayerCardsCounterDiv);
-  setTimeout(() => giveCard(firstPlayerCardsDiv, dealer, firstPlayerCardsCounterDiv), 500);
-  setTimeout(() => handleWin(e, user, dealer), 1000);
+  if (!isDeckLengthExceeded())
+  {
+    giveCard(secondPlayerCardsDiv, user, secondPlayerCardsCounterDiv);
+    setTimeout(() => handleAIMove(firstPlayerCardsDiv, dealer, firstPlayerCardsCounterDiv), 500);
+    setTimeout(() => handleWin(e, user, dealer), 1000);
+  }
 }
 
 const handleStand = (e) => {
@@ -252,7 +294,6 @@ const handleModalOverlayClick = (e) => {
   e.preventDefault();
   if (e.target === e.currentTarget) {
     closeModal(modal);
-    handlePlayAgainButtonClick(e);
   }
 }
 
@@ -266,17 +307,25 @@ const handlePlayAgainButtonClick = (e) => {
   secondPlayerCardsDiv.childNodes.forEach(node => {
     node.replaceWith('');
   })
-  giveCard(secondPlayerCardsDiv, user, secondPlayerCardsCounterDiv);
-  giveCard(firstPlayerCardsDiv, dealer, firstPlayerCardsCounterDiv);
+  if (!isDeckLengthExceeded()) {
+    giveCard(secondPlayerCardsDiv, user, secondPlayerCardsCounterDiv);
+    giveCard(firstPlayerCardsDiv, dealer, firstPlayerCardsCounterDiv);
+  }
   modalText.classList.remove('dealer_wins', 'user_wins', 'no-one_wins');
+  showControls();
+  firstPlayerCardsCounterDiv.classList.add('counter_hidden');
   closeModal(modal);
 }
 
-giveCard(firstPlayerCardsDiv, dealer, firstPlayerCardsCounterDiv);
+
+// first move
+handleAIMove(firstPlayerCardsDiv, dealer, firstPlayerCardsCounterDiv);
 giveCard(secondPlayerCardsDiv, user, secondPlayerCardsCounterDiv);
 updateTotalScore();
 
+// set handlers
 hitButton.addEventListener('click', handleHitClick);
 standButton.addEventListener('click', handleStand);
+playAgainModalButton.addEventListener('click', handlePlayAgainButtonClick);
 playAgainButton.addEventListener('click', handlePlayAgainButtonClick);
 modal.addEventListener('click', handleModalOverlayClick);
